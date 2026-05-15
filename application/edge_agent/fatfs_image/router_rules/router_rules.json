@@ -163,5 +163,32 @@
         }
       }
     ]
+  },
+  {
+    "id": "ble_hid_input_boot_listener",
+    "description": "Start the application-layer BLE HID button listener after boot.",
+    "enabled": true,
+    "consume_on_match": false,
+    "ack": "BLE HID input listener started",
+    "match": {
+      "source_cap": "app_claw",
+      "event_type": "startup",
+      "event_key": "boot_completed"
+    },
+    "actions": [
+      {
+        "type": "run_script",
+        "input": {
+          "async": true,
+          "path": "/fatfs/skills/ble_hid_input/scripts/listen_ble_hid_input.lua",
+          "name": "ble_hid_input",
+          "exclusive": "ble_hid_input",
+          "replace": true,
+          "timeout_ms": 0
+        },
+        "fail_open": true,
+        "capture_output": true
+      }
+    ]
   }
 ]

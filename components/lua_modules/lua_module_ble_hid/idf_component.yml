@@ -1,0 +1,3 @@
+## IDF Component Manager Manifest File
+## BLE HID uses ESP-IDF `bt` and `esp_hid` components via CMake PRIV_REQUIRES.
+dependencies: {}
