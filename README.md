@@ -1,6 +1,5 @@
 <div align="center">
 
-  <a href="https://esp-claw.com/en/">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="./docs/src/assets/logos/logo-f.svg" />
       <source media="(prefers-color-scheme: light)" srcset="./docs/src/assets/logos/logo.svg" />
