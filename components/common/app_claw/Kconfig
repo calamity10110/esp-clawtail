@@ -308,12 +308,12 @@ menu "App Claw Config"
                 Enable the JSON Lua module and keep app_claw's direct dependency
                 on lua_module_json when Lua capability is enabled.
 
-        config APP_CLAW_LUA_MODULE_RUNTIME
-            bool "Enable runtime Lua module"
+        config APP_CLAW_LUA_MODULE_THREAD
+            bool "Enable Thread Lua module"
             default y
             help
-                Enable the runtime Lua module and keep app_claw's direct
-                dependency on lua_module_runtime when Lua capability is enabled.
+                Enable the Thread Lua module and keep app_claw's direct
+                dependency on lua_module_thread when Lua capability is enabled.
 
         config APP_CLAW_LUA_MODULE_FUEL_GAUGE
             bool "Enable Fuel Gauge Lua module"

@@ -1,17 +1,16 @@
-local runtime = require("runtime")
+local thread = require("thread")
 local delay = require("delay")
 
-local thread = runtime.thread
-local sync = runtime.sync
+local sync = thread.sync
 
-local child_a_path = args.child_a_path or "/fatfs/scripts/builtin/test/runtime_child_a.lua"
-local child_b_path = args.child_b_path or "/fatfs/scripts/builtin/test/runtime_child_b.lua"
+local child_a_path = args.child_a_path or "/fatfs/scripts/builtin/test/thread_child_a.lua"
+local child_b_path = args.child_b_path or "/fatfs/scripts/builtin/test/thread_child_b.lua"
 
-local queue_to_a = "runtime_test_to_a"
-local queue_to_b = "runtime_test_to_b"
-local queue_to_parent = "runtime_test_to_parent"
-local sem_name = "runtime_test_sem"
-local lock_name = "runtime_test_lock"
+local queue_to_a = "thread_test_to_a"
+local queue_to_b = "thread_test_to_b"
+local queue_to_parent = "thread_test_to_parent"
+local sem_name = "thread_test_sem"
+local lock_name = "thread_test_lock"
 
 local function cleanup()
     pcall(sync.queue_delete, queue_to_a)
@@ -35,7 +34,7 @@ local started_a, result_a = thread.start(child_a_path, {
     sem_name = sem_name,
     lock_name = lock_name,
 }, {
-    name = "runtime_child_a",
+    name = "thread_child_a",
     timeout_ms = 5000,
     replace = true,
 })
@@ -47,7 +46,7 @@ local started_b, result_b = thread.start(child_b_path, {
     sem_name = sem_name,
     lock_name = lock_name,
 }, {
-    name = "runtime_child_b",
+    name = "thread_child_b",
     timeout_ms = 5000,
     replace = true,
 })
@@ -80,10 +79,10 @@ local function wait_job_done(name)
     error(name .. " did not finish")
 end
 
-local output_a = wait_job_done("runtime_child_a")
-local output_b = wait_job_done("runtime_child_b")
-assert(output_a:find("runtime_child_a ok", 1, true))
-assert(output_b:find("runtime_child_b ok", 1, true))
+local output_a = wait_job_done("thread_child_a")
+local output_b = wait_job_done("thread_child_b")
+assert(output_a:find("thread_child_a ok", 1, true))
+assert(output_b:find("thread_child_b ok", 1, true))
 
 assert(sync.queue_delete(queue_to_a))
 assert(sync.queue_delete(queue_to_b))
@@ -91,4 +90,4 @@ assert(sync.queue_delete(queue_to_parent))
 assert(sync.sem_delete(sem_name))
 assert(sync.lock_delete(lock_name))
 
-print("runtime_parent ok")
+print("thread_parent ok")

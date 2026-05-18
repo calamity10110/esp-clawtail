@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "lua_module_runtime.h"
+#include "lua_module_thread.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,20 +16,20 @@
 #include "esp_err.h"
 #include "lauxlib.h"
 
-#define RUNTIME_THREAD_OUTPUT_SIZE 4096
-#define RUNTIME_THREAD_JSON_MAX_DEPTH 64
+#define THREAD_JOB_OUTPUT_SIZE 4096
+#define THREAD_JOB_JSON_MAX_DEPTH 64
 
 typedef struct {
     bool is_array;
     lua_Integer max_index;
     lua_Integer count;
-} runtime_thread_table_shape_t;
+} thread_job_table_shape_t;
 
-static cJSON *runtime_thread_json_from_value(lua_State *L, int index, int depth);
+static cJSON *thread_job_json_from_value(lua_State *L, int index, int depth);
 
-static runtime_thread_table_shape_t runtime_thread_get_table_shape(lua_State *L, int index)
+static thread_job_table_shape_t thread_job_get_table_shape(lua_State *L, int index)
 {
-    runtime_thread_table_shape_t shape = {
+    thread_job_table_shape_t shape = {
         .is_array = false,
         .max_index = 0,
         .count = 0,
@@ -59,7 +59,7 @@ static runtime_thread_table_shape_t runtime_thread_get_table_shape(lua_State *L,
     return shape;
 }
 
-static cJSON *runtime_thread_json_from_array(lua_State *L,
+static cJSON *thread_job_json_from_array(lua_State *L,
                                                 int index,
                                                 lua_Integer count,
                                                 int depth)
@@ -75,7 +75,7 @@ static cJSON *runtime_thread_json_from_array(lua_State *L,
         cJSON *child = NULL;
 
         lua_rawgeti(L, index, i);
-        child = runtime_thread_json_from_value(L, -1, depth + 1);
+        child = thread_job_json_from_value(L, -1, depth + 1);
         lua_pop(L, 1);
         if (!child || !cJSON_AddItemToArray(json, child)) {
             cJSON_Delete(child);
@@ -87,7 +87,7 @@ static cJSON *runtime_thread_json_from_array(lua_State *L,
     return json;
 }
 
-static cJSON *runtime_thread_json_from_object(lua_State *L, int index, int depth)
+static cJSON *thread_job_json_from_object(lua_State *L, int index, int depth)
 {
     cJSON *json = cJSON_CreateObject();
 
@@ -98,7 +98,7 @@ static cJSON *runtime_thread_json_from_object(lua_State *L, int index, int depth
     index = lua_absindex(L, index);
     lua_pushnil(L);
     while (lua_next(L, index) != 0) {
-        cJSON *child = runtime_thread_json_from_value(L, -1, depth + 1);
+        cJSON *child = thread_job_json_from_value(L, -1, depth + 1);
         char key_buf[32];
         const char *key = NULL;
 
@@ -133,20 +133,20 @@ static cJSON *runtime_thread_json_from_object(lua_State *L, int index, int depth
     return json;
 }
 
-static cJSON *runtime_thread_json_from_table(lua_State *L, int index, int depth)
+static cJSON *thread_job_json_from_table(lua_State *L, int index, int depth)
 {
-    runtime_thread_table_shape_t shape = runtime_thread_get_table_shape(L, index);
+    thread_job_table_shape_t shape = thread_job_get_table_shape(L, index);
 
     if (shape.is_array) {
-        return runtime_thread_json_from_array(L, index, shape.count, depth);
+        return thread_job_json_from_array(L, index, shape.count, depth);
     }
 
-    return runtime_thread_json_from_object(L, index, depth);
+    return thread_job_json_from_object(L, index, depth);
 }
 
-static cJSON *runtime_thread_json_from_value(lua_State *L, int index, int depth)
+static cJSON *thread_job_json_from_value(lua_State *L, int index, int depth)
 {
-    if (depth > RUNTIME_THREAD_JSON_MAX_DEPTH) {
+    if (depth > THREAD_JOB_JSON_MAX_DEPTH) {
         luaL_error(L, "thread: nested value too deep");
         return NULL;
     }
@@ -162,14 +162,14 @@ static cJSON *runtime_thread_json_from_value(lua_State *L, int index, int depth)
     case LUA_TSTRING:
         return cJSON_CreateString(lua_tostring(L, index));
     case LUA_TTABLE:
-        return runtime_thread_json_from_table(L, index, depth);
+        return thread_job_json_from_table(L, index, depth);
     default:
         luaL_error(L, "thread: unsupported Lua type '%s'", luaL_typename(L, index));
         return NULL;
     }
 }
 
-static char *runtime_thread_build_args_json(lua_State *L, int index)
+static char *thread_job_build_args_json(lua_State *L, int index)
 {
     cJSON *json = NULL;
     char *payload = NULL;
@@ -182,7 +182,7 @@ static char *runtime_thread_build_args_json(lua_State *L, int index)
         return NULL;
     }
 
-    json = runtime_thread_json_from_table(L, index, 0);
+    json = thread_job_json_from_table(L, index, 0);
     if (!json) {
         luaL_error(L, "thread: out of memory");
         return NULL;
@@ -203,7 +203,7 @@ static char *runtime_thread_build_args_json(lua_State *L, int index)
     return payload;
 }
 
-static uint32_t runtime_thread_get_timeout_ms(lua_State *L,
+static uint32_t thread_job_get_timeout_ms(lua_State *L,
                                                  int opts_idx,
                                                  uint32_t default_value)
 {
@@ -230,7 +230,7 @@ static uint32_t runtime_thread_get_timeout_ms(lua_State *L,
     return (uint32_t)value;
 }
 
-static bool runtime_thread_get_bool_field(lua_State *L,
+static bool thread_job_get_bool_field(lua_State *L,
                                              int opts_idx,
                                              const char *field_name,
                                              bool default_value)
@@ -259,7 +259,7 @@ static bool runtime_thread_get_bool_field(lua_State *L,
     return value;
 }
 
-static const char *runtime_thread_get_string_field(lua_State *L,
+static const char *thread_job_get_string_field(lua_State *L,
                                                       int opts_idx,
                                                       const char *field_name,
                                                       char *buf,
@@ -296,7 +296,7 @@ static const char *runtime_thread_get_string_field(lua_State *L,
     return value && value[0] ? value : NULL;
 }
 
-static int runtime_thread_push_result(lua_State *L, esp_err_t err, const char *output)
+static int thread_job_push_result(lua_State *L, esp_err_t err, const char *output)
 {
     if (err == ESP_OK) {
         lua_pushboolean(L, true);
@@ -313,12 +313,12 @@ static int runtime_thread_push_result(lua_State *L, esp_err_t err, const char *o
     return 2;
 }
 
-static int runtime_thread_run(lua_State *L)
+static int thread_job_run(lua_State *L)
 {
     const char *path = luaL_checkstring(L, 1);
-    char *args_json = runtime_thread_build_args_json(L, 2);
-    uint32_t timeout_ms = runtime_thread_get_timeout_ms(L, 3, 0);
-    char output[RUNTIME_THREAD_OUTPUT_SIZE] = {0};
+    char *args_json = thread_job_build_args_json(L, 2);
+    uint32_t timeout_ms = thread_job_get_timeout_ms(L, 3, 0);
+    char output[THREAD_JOB_OUTPUT_SIZE] = {0};
     esp_err_t err = cap_lua_run_script(path,
                                        args_json,
                                        timeout_ms,
@@ -326,20 +326,20 @@ static int runtime_thread_run(lua_State *L)
                                        sizeof(output));
 
     cJSON_free(args_json);
-    return runtime_thread_push_result(L, err, output);
+    return thread_job_push_result(L, err, output);
 }
 
-static int runtime_thread_start(lua_State *L)
+static int thread_job_start(lua_State *L)
 {
     const char *path = luaL_checkstring(L, 1);
-    char *args_json = runtime_thread_build_args_json(L, 2);
-    uint32_t timeout_ms = runtime_thread_get_timeout_ms(L, 3, 0);
+    char *args_json = thread_job_build_args_json(L, 2);
+    uint32_t timeout_ms = thread_job_get_timeout_ms(L, 3, 0);
     char name[64] = {0};
     char exclusive[64] = {0};
-    const char *name_value = runtime_thread_get_string_field(L, 3, "name", name, sizeof(name));
-    const char *exclusive_value = runtime_thread_get_string_field(L, 3, "exclusive", exclusive, sizeof(exclusive));
-    bool replace = runtime_thread_get_bool_field(L, 3, "replace", false);
-    char output[RUNTIME_THREAD_OUTPUT_SIZE] = {0};
+    const char *name_value = thread_job_get_string_field(L, 3, "name", name, sizeof(name));
+    const char *exclusive_value = thread_job_get_string_field(L, 3, "exclusive", exclusive, sizeof(exclusive));
+    bool replace = thread_job_get_bool_field(L, 3, "replace", false);
+    char output[THREAD_JOB_OUTPUT_SIZE] = {0};
     esp_err_t err = cap_lua_run_script_async(path,
                                              args_json,
                                              timeout_ms,
@@ -350,32 +350,32 @@ static int runtime_thread_start(lua_State *L)
                                              sizeof(output));
 
     cJSON_free(args_json);
-    return runtime_thread_push_result(L, err, output);
+    return thread_job_push_result(L, err, output);
 }
 
-static int runtime_thread_list(lua_State *L)
+static int thread_job_list(lua_State *L)
 {
     const char *status = luaL_optstring(L, 1, NULL);
-    char output[RUNTIME_THREAD_OUTPUT_SIZE] = {0};
+    char output[THREAD_JOB_OUTPUT_SIZE] = {0};
     esp_err_t err = cap_lua_list_jobs(status, output, sizeof(output));
 
-    return runtime_thread_push_result(L, err, output);
+    return thread_job_push_result(L, err, output);
 }
 
-static int runtime_thread_get(lua_State *L)
+static int thread_job_get(lua_State *L)
 {
     const char *id_or_name = luaL_checkstring(L, 1);
-    char output[RUNTIME_THREAD_OUTPUT_SIZE] = {0};
+    char output[THREAD_JOB_OUTPUT_SIZE] = {0};
     esp_err_t err = cap_lua_get_job(id_or_name, output, sizeof(output));
 
-    return runtime_thread_push_result(L, err, output);
+    return thread_job_push_result(L, err, output);
 }
 
-static int runtime_thread_stop(lua_State *L)
+static int thread_job_stop(lua_State *L)
 {
     const char *id_or_name = luaL_checkstring(L, 1);
     lua_Integer wait_value = luaL_optinteger(L, 2, 0);
-    char output[RUNTIME_THREAD_OUTPUT_SIZE] = {0};
+    char output[THREAD_JOB_OUTPUT_SIZE] = {0};
     esp_err_t err;
 
     if (wait_value < 0 || (uint64_t)wait_value > UINT32_MAX) {
@@ -383,21 +383,20 @@ static int runtime_thread_stop(lua_State *L)
     }
 
     err = cap_lua_stop_job(id_or_name, (uint32_t)wait_value, output, sizeof(output));
-    return runtime_thread_push_result(L, err, output);
+    return thread_job_push_result(L, err, output);
 }
 
-int lua_module_runtime_push_thread(lua_State *L)
+void lua_module_thread_register_job_funcs(lua_State *L)
 {
     static const luaL_Reg funcs[] = {
-        {"run", runtime_thread_run},
-        {"start", runtime_thread_start},
-        {"list", runtime_thread_list},
-        {"get", runtime_thread_get},
-        {"stop", runtime_thread_stop},
+        {"run", thread_job_run},
+        {"start", thread_job_start},
+        {"list", thread_job_list},
+        {"get", thread_job_get},
+        {"stop", thread_job_stop},
         {NULL, NULL},
     };
 
-    lua_newtable(L);
+    luaL_checktype(L, -1, LUA_TTABLE);
     luaL_setfuncs(L, funcs, 0);
-    return 1;
 }

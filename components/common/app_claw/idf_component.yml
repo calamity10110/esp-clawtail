@@ -221,11 +221,11 @@ dependencies:
       - if: $CONFIG{APP_CLAW_LUA_MODULE_JSON} == True
     path: ../../lua_modules/lua_module_json
 
-  lua_module_runtime:
+  lua_module_thread:
     rules:
       - if: $CONFIG{APP_CLAW_CAP_LUA} == True
-      - if: $CONFIG{APP_CLAW_LUA_MODULE_RUNTIME} == True
-    path: ../../lua_modules/lua_module_runtime
+      - if: $CONFIG{APP_CLAW_LUA_MODULE_THREAD} == True
+    path: ../../lua_modules/lua_module_thread
 
   lua_module_fuel_gauge:
     rules:

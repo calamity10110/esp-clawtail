@@ -1,6 +1,6 @@
-local runtime = require("runtime")
+local thread = require("thread")
 
-local sync = runtime.sync
+local sync = thread.sync
 
 local queue_to_a = assert(args.queue_to_a, "args.queue_to_a is required")
 local queue_to_b = assert(args.queue_to_b, "args.queue_to_b is required")
@@ -22,4 +22,4 @@ assert(sync.unlock(lock_name))
 
 assert(sync.sem_give(sem_name))
 
-print("runtime_child_a ok")
+print("thread_child_a ok")

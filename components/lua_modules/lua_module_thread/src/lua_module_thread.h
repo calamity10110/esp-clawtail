@@ -12,12 +12,12 @@
 extern "C" {
 #endif
 
-int luaopen_runtime(lua_State *L);
-esp_err_t lua_module_runtime_register(void);
+int luaopen_thread(lua_State *L);
+esp_err_t lua_module_thread_register(void);
 
-int lua_module_runtime_push_sync(lua_State *L);
-int lua_module_runtime_push_thread(lua_State *L);
-esp_err_t runtime_sync_init(void);
+int lua_module_thread_push_sync(lua_State *L);
+void lua_module_thread_register_job_funcs(lua_State *L);
+esp_err_t thread_sync_init(void);
 
 #ifdef __cplusplus
 }
