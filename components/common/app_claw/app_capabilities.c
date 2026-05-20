@@ -42,9 +42,6 @@
 #if CONFIG_APP_CLAW_CAP_MCP_CLIENT
 #include "cap_mcp_client.h"
 #endif
-#if CONFIG_APP_CLAW_CAP_MCP_SERVER
-#include "cap_mcp_server.h"
-#endif
 #if CONFIG_APP_CLAW_CAP_ROUTER_MGR
 #include "cap_router_mgr.h"
 #endif
@@ -70,7 +67,9 @@
 #include "cap_web_search.h"
 #endif
 #include "claw_cap.h"
+#if CONFIG_APP_CLAW_CAP_MEMORY
 #include "claw_memory.h"
+#endif
 #include "claw_paths.h"
 #include "esp_check.h"
 #include "esp_log.h"
@@ -451,16 +450,6 @@ static esp_err_t app_cap_register_mcp_client(const app_claw_config_t *config,
 }
 #endif
 
-#if CONFIG_APP_CLAW_CAP_MCP_SERVER
-static esp_err_t app_cap_register_mcp_server(const app_claw_config_t *config,
-                                             const app_claw_storage_paths_t *paths)
-{
-    (void)config;
-    (void)paths;
-    return cap_mcp_server_register_group();
-}
-#endif
-
 #if CONFIG_APP_CLAW_CAP_SKILL_MGR
 static esp_err_t app_cap_register_skill_mgr(const app_claw_config_t *config,
                                             const app_claw_storage_paths_t *paths)
@@ -619,9 +608,6 @@ static const app_capability_group_entry_t s_capability_group_entries[] = {
 #if CONFIG_APP_CLAW_CAP_MCP_CLIENT
     { "cap_mcp_client", "MCP Client", "Register MCP client cap", false, NULL, app_cap_register_mcp_client },
 #endif
-#if CONFIG_APP_CLAW_CAP_MCP_SERVER
-    { "cap_mcp_server", "MCP Server", "Register MCP server cap", false, NULL, app_cap_register_mcp_server },
-#endif
 #if CONFIG_APP_CLAW_CAP_SKILL_MGR
     { "cap_skill", "Skill Manager", "Register skill cap", true, NULL, app_cap_register_skill_mgr },
 #endif
@@ -681,9 +667,6 @@ static const app_capability_group_info_t s_capability_group_infos[] = {
 #endif
 #if CONFIG_APP_CLAW_CAP_MCP_CLIENT
     { "cap_mcp_client", "MCP Client", false },
-#endif
-#if CONFIG_APP_CLAW_CAP_MCP_SERVER
-    { "cap_mcp_server", "MCP Server", false },
 #endif
 #if CONFIG_APP_CLAW_CAP_SKILL_MGR
     { "cap_skill", "Skill Manager", true },

@@ -21,15 +21,24 @@
 #if CONFIG_APP_CLAW_CAP_SESSION_MGR
 #include "cap_session_mgr.h"
 #endif
+#if CONFIG_APP_CLAW_CAP_CORE
 #include "claw_core.h"
 #include "claw_paths.h"
 #include "claw_agent_mgr.h"
+#endif
+#if CONFIG_APP_CLAW_CAP_EVENT_ROUTER
 #include "claw_event_publisher.h"
 #include "claw_event_router.h"
+#endif
+#if CONFIG_APP_CLAW_CAP_MEMORY
 #include "claw_memory.h"
+#endif
+#if CONFIG_APP_CLAW_CAP_SKILL_MGR
 #include "claw_skill.h"
+#endif
 #include "esp_check.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #if CONFIG_APP_CLAW_CAP_LUA
 #include "cap_lua.h"
@@ -80,7 +89,7 @@ claw_core_handle_t app_claw_get_core(void)
     return claw_agent_mgr_get_root_core();
 }
 
-#if CONFIG_APP_CLAW_CAP_SESSION_MGR
+#if CONFIG_APP_CLAW_CAP_SESSION_MGR && (CONFIG_APP_CLAW_CAP_MEMORY || CONFIG_APP_CLAW_CAP_SKILL_MGR)
 static esp_err_t app_claw_delete_session_history(const char *session_id,
                                                  bool *out_deleted_any,
                                                  void *user_ctx)
@@ -96,15 +105,19 @@ static esp_err_t app_claw_delete_session_history(const char *session_id,
     }
     *out_deleted_any = false;
 
+#if CONFIG_APP_CLAW_CAP_MEMORY
     err = claw_memory_delete_session_history(session_id, &memory_deleted);
     if (err != ESP_OK) {
         return err;
     }
+#endif
 
+#if CONFIG_APP_CLAW_CAP_SKILL_MGR
     err = claw_skill_delete_session_state(session_id, &skill_deleted);
     if (err != ESP_OK) {
         return err;
     }
+#endif
 
     *out_deleted_any = memory_deleted || skill_deleted;
     return ESP_OK;
@@ -131,6 +144,7 @@ esp_err_t app_claw_set_network_status(bool sta_connected, const char *ap_ssid)
 #endif
 }
 
+#if CONFIG_APP_CLAW_CAP_MEMORY
 static esp_err_t init_memory(const app_claw_config_t *config,
                              const app_claw_storage_paths_t *paths,
                              uint32_t max_tool_iterations)
@@ -168,7 +182,9 @@ static esp_err_t init_memory(const app_claw_config_t *config,
 
     return ESP_OK;
 }
+#endif
 
+#if CONFIG_APP_CLAW_CAP_SKILL_MGR
 static esp_err_t init_skills(const app_claw_storage_paths_t *paths)
 {
     ESP_RETURN_ON_ERROR(claw_skill_init(&(claw_skill_config_t) {
@@ -181,7 +197,9 @@ static esp_err_t init_skills(const app_claw_storage_paths_t *paths)
     ESP_RETURN_ON_ERROR(claw_skill_add_directory(paths->skills_root_dir), TAG, "Failed to add skills directory");
     return ESP_OK;
 }
+#endif
 
+#if CONFIG_APP_CLAW_CAP_EVENT_ROUTER
 static esp_err_t app_claw_publish_startup_event(void)
 {
     static const char *payload_json =
@@ -194,6 +212,7 @@ static esp_err_t app_claw_publish_startup_event(void)
                                              APP_STARTUP_EVENT_KEY,
                                              payload_json);
 }
+#endif
 
 static bool app_llm_is_configured(const app_claw_config_t *config)
 {
@@ -253,9 +272,14 @@ static esp_err_t build_storage_paths(app_claw_storage_paths_t *paths)
 
 esp_err_t app_claw_start(const app_claw_config_t *config)
 {
-    claw_core_config_t core_config = {0};
     app_claw_storage_paths_t paths;
+#if CONFIG_APP_CLAW_CAP_CORE
+    claw_core_config_t core_config = {0};
+#endif
+#if CONFIG_APP_CLAW_CAP_CORE || CONFIG_APP_CLAW_CAP_MEMORY
     const uint32_t max_tool_iterations = 32;
+#endif
+#if CONFIG_APP_CLAW_CAP_EVENT_ROUTER
     claw_event_router_config_t router_config = {
         .rules_path = NULL,
         .task_stack_size = 8 * 1024,
@@ -264,6 +288,7 @@ esp_err_t app_claw_start(const app_claw_config_t *config)
         .agent_submit_timeout_ms = 1000,
         .default_route_messages_to_agent = false,
     };
+#endif
     bool llm_enabled = false;
 
     if (!config) {
@@ -272,14 +297,20 @@ esp_err_t app_claw_start(const app_claw_config_t *config)
     ESP_RETURN_ON_ERROR(build_storage_paths(&paths), TAG, "Failed to resolve storage paths");
 
     llm_enabled = app_llm_is_configured(config);
+#if CONFIG_APP_CLAW_CAP_EVENT_ROUTER
     router_config.default_route_messages_to_agent = llm_enabled;
     router_config.rules_path = paths.router_rules_path;
+#endif
 
 #if CONFIG_APP_CLAW_CAP_SESSION_MGR
     ESP_RETURN_ON_ERROR(cap_session_mgr_set_session_root_dir(paths.memory_session_root),
                         TAG, "Failed to configure session manager");
 #endif
+
+#if CONFIG_APP_CLAW_CAP_EVENT_ROUTER
     ESP_RETURN_ON_ERROR(claw_event_router_init(&router_config), TAG, "Failed to init event router");
+#endif
+
 #if CONFIG_APP_CLAW_CAP_SCHEDULER
     ESP_RETURN_ON_ERROR(cap_scheduler_init(&(cap_scheduler_config_t) {
                             .schedules_path = paths.scheduler_rules_path,
@@ -293,12 +324,16 @@ esp_err_t app_claw_start(const app_claw_config_t *config)
                         }),
                         TAG, "Failed to init scheduler");
 #endif
+#if CONFIG_APP_CLAW_CAP_MEMORY
     ESP_RETURN_ON_ERROR(init_memory(config, &paths, max_tool_iterations), TAG, "Failed to init memory");
-#if CONFIG_APP_CLAW_CAP_SESSION_MGR
+#endif
+#if CONFIG_APP_CLAW_CAP_SESSION_MGR && (CONFIG_APP_CLAW_CAP_MEMORY || CONFIG_APP_CLAW_CAP_SKILL_MGR)
     ESP_RETURN_ON_ERROR(cap_session_mgr_set_delete_session_handler(app_claw_delete_session_history, NULL),
                         TAG, "Failed to register session delete handler");
 #endif
+#if CONFIG_APP_CLAW_CAP_SKILL_MGR
     ESP_RETURN_ON_ERROR(init_skills(&paths), TAG, "Failed to init skills");
+#endif
     ESP_RETURN_ON_ERROR(app_capabilities_init(config, &paths), TAG, "Failed to init capabilities");
 #if CONFIG_APP_CLAW_CAP_IM_QQ
     ESP_RETURN_ON_ERROR(claw_event_router_register_outbound_binding("qq", "qq_send_message"),
@@ -321,6 +356,7 @@ esp_err_t app_claw_start(const app_claw_config_t *config)
                         TAG, "Failed to bind Web / local IM outbound");
 #endif
 
+#if CONFIG_APP_CLAW_CAP_CORE
     core_config.api_key = config->llm_api_key;
     core_config.backend_type = config->llm_backend_type;
     core_config.model = config->llm_model;
@@ -335,6 +371,7 @@ esp_err_t app_claw_start(const app_claw_config_t *config)
     core_config.image_remote_url_only = app_claw_bool_is_true(config->llm_image_remote_url_only);
     core_config.instance_id = 0;
     core_config.system_prompt = APP_SYSTEM_PROMPT;
+#if CONFIG_APP_CLAW_CAP_MEMORY
 #if CONFIG_APP_CLAW_MEMORY_MODE_FULL
     core_config.persist_context = claw_memory_persist_context_callback;
     core_config.request_gate = claw_memory_request_gate_callback;
@@ -343,6 +380,7 @@ esp_err_t app_claw_start(const app_claw_config_t *config)
 #else
     core_config.persist_context = claw_memory_persist_context_callback;
     core_config.request_gate = claw_memory_request_gate_callback;
+#endif
 #endif
     core_config.call_cap = claw_cap_call_from_core;
     core_config.cap_user_ctx = NULL;
@@ -386,8 +424,11 @@ esp_err_t app_claw_start(const app_claw_config_t *config)
                             TAG, "Failed to create root agent");
         ESP_LOGI(TAG, "Root agent ready id=%s", root_agent_id ? root_agent_id : "?");
     }
+#endif
 
+#if CONFIG_APP_CLAW_CAP_EVENT_ROUTER
     ESP_RETURN_ON_ERROR(claw_event_router_start(), TAG, "Failed to start event router");
+#endif
 #if CONFIG_APP_CLAW_CAP_SCHEDULER
     ESP_RETURN_ON_ERROR(cap_scheduler_start(), TAG, "Failed to start scheduler");
 #endif
@@ -406,8 +447,11 @@ esp_err_t app_claw_start(const app_claw_config_t *config)
 #if CONFIG_APP_CLAW_ENABLE_CLI
     ESP_RETURN_ON_ERROR(app_claw_cli_start(), TAG, "Failed to start CLI");
 #endif
+#if CONFIG_APP_CLAW_CAP_EVENT_ROUTER
     ESP_RETURN_ON_ERROR(app_claw_publish_startup_event(), TAG,
                         "Failed to publish startup event");
+#endif
+    ESP_LOGI(TAG, "App Claw runtime started");
 
     return ESP_OK;
 }
