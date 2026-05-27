@@ -43,6 +43,7 @@ export default defineConfig({
             { slug: "tutorial/bom" },
             { slug: "tutorial/assemble" },
             { slug: "tutorial/get-started" },
+            { slug: "tutorial/first-interactions", translations: { en: "First interactions", "zh-CN": "上手体验" } },
             { slug: "tutorial/web-config" },
             { slug: "tutorial/skills-lab" },
             { slug: "tutorial/faq" },

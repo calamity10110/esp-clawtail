@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "check:doc-lines": "node ./tools/check-doc-line-alignment.ts",
+    "check:doc-lines": "tsx ./tools/check-doc-line-alignment.ts",
     "generate-firmware-json": "node ./tools/generate-firmware-json.ts"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "@types/mdast": "^4.0.4",
     "@types/w3c-web-serial": "^1.0.8",
     "mdast-util-mdx-jsx": "^3.2.0",
+    "tsx": "^4.22.3",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
     "vfile": "^6.0.3"
