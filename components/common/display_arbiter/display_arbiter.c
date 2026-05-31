@@ -144,9 +144,21 @@ fail:
     return ret;
 }
 
+/*
+ * Make reads of the owner thread-safe by acquiring the same mutex used
+ * for mutations. This prevents races between callers checking the owner
+ * and callers changing it.
+ */
 display_arbiter_owner_t display_arbiter_get_owner(void)
 {
-    return s_state.owner;
+    display_arbiter_owner_t owner = DISPLAY_ARBITER_OWNER_NONE;
+    if (display_arbiter_lock() != ESP_OK) {
+        ESP_LOGW(TAG, "failed to lock when getting owner; returning NONE");
+        return owner;
+    }
+    owner = s_state.owner;
+    display_arbiter_unlock();
+    return owner;
 }
 
 bool display_arbiter_is_owner(display_arbiter_owner_t owner)
