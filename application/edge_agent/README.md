@@ -24,7 +24,7 @@ Each board can also provide optional board-specific FATFS content under its own 
 application/edge_agent/boards/<vendor>/<board>/fatfs_image/
 ```
 
-During the build, `application/edge_agent/CMakeLists.txt` first copies the base `fatfs_image/system/` directory into the system staging dir, then copies the selected board's `fatfs_image/` directory if it exists. The selected board path comes from the generated `components/gen_bmgr_codes/CMakeLists.txt`, which is produced by `idf.py gen-bmgr-config`.
+During the build, `application/edge_agent/CMakeLists.txt` first copies the base `fatfs_image/system/` directory into the system staging dir, then copies the selected board's `fatfs_image/` directory if it exists. The selected board path comes from the generated `components/gen_bmgr_codes/CMakeLists.txt`, which is produced by `idf.py bmgr`.
 
 If a board-specific file has the same relative path as a base system file, the board-specific file overwrites the base file in `build/system_fs_image/`. This lets a board replace firmware-baked defaults such as skills, scripts, and static assets without changing the shared base image. Board `fatfs_image/` content targets the SYSTEM image only; hidden board folders are not considered.
 
@@ -50,10 +50,10 @@ To make `esp-board-manager` easier to use, first install the helper package with
 
 ```bash
 cd application/edge_agent
-idf.py gen-bmgr-config -c ./boards -b esp32_S3_DevKitC_1
+idf.py bmgr -c ./boards -b esp32_S3_DevKitC_1
 ```
 
-> `idf.py gen-bmgr-config -c ./boards -b <board_name>` generates the configuration for the specified board. Available board names can be found in the `boards` directory.
+> `idf.py bmgr -c ./boards -b <board_name>` generates the configuration for the specified board. Available board names can be found in the `boards` directory.
 
 2. Configure Wi-Fi, LLM, IM, search engine, and related parameters:
 

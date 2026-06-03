@@ -18,7 +18,7 @@ Generate board manager files and build from the app directory:
 
 ```bash
 cd application/edge_agent
-idf.py gen-bmgr-config -c ./boards -b esp32_S3_DevKitC_1
+idf.py bmgr -c ./boards -b esp32_S3_DevKitC_1
 idf.py build
 idf.py flash monitor
 ```

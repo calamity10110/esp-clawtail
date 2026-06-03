@@ -45,14 +45,14 @@ import LinkToSource from '@/components/LinkToSource.astro';
 3. **Select a development board**
 
    ```bash
-   idf.py gen-bmgr-config -c ./boards -b <board_name>
-   # e.g.: idf.py gen-bmgr-config -c ./boards -b esp32_S3_DevKitC_1
+   idf.py bmgr -c ./boards -b <board_name>
+   # e.g.: idf.py bmgr -c ./boards -b esp32_S3_DevKitC_1
    ```
 
    <Aside type="tip" title="Supported boards">
       You can list supported boards with:
       ```bash
-      idf.py gen-bmgr-config -c ./boards -l
+      idf.py bmgr -c ./boards -l
       ```
 
       Or check <LinkToSource relativePath="application/edge_agent/boards/" />.
