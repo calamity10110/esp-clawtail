@@ -118,6 +118,8 @@ static claw_agent_mgr_state_t s_mgr = {0};
 
 static void claw_agent_mgr_completion_observer(const claw_core_completion_summary_t *summary,
                                                void *user_ctx);
+static void claw_agent_mgr_fill_info_locked(const claw_agent_mgr_agent_t *agent,
+                                            claw_agent_mgr_agent_info_t *out_info);
 
 static char *claw_agent_mgr_strdup(const char *src)
 {
@@ -934,6 +936,14 @@ esp_err_t claw_agent_mgr_inspect_agent(const claw_cap_call_context_t *ctx,
         claw_agent_mgr_unlock();
         return ESP_ERR_NOT_FOUND;
     }
+    claw_agent_mgr_fill_info_locked(agent, out_info);
+    claw_agent_mgr_unlock();
+    return ESP_OK;
+}
+
+static void claw_agent_mgr_fill_info_locked(const claw_agent_mgr_agent_t *agent,
+                                            claw_agent_mgr_agent_info_t *out_info)
+{
     memset(out_info, 0, sizeof(*out_info));
     strlcpy(out_info->agent_id, agent->agent_id, sizeof(out_info->agent_id));
     strlcpy(out_info->session_id, agent->session_id, sizeof(out_info->session_id));
@@ -944,7 +954,56 @@ esp_err_t claw_agent_mgr_inspect_agent(const claw_cap_call_context_t *ctx,
                       CLAW_CORE_AGENT_LOOP_PHASE_IDLE;
     out_info->last_request_id = agent->last_request_id;
     strlcpy(out_info->last_error, agent->last_error, sizeof(out_info->last_error));
+}
+
+esp_err_t claw_agent_mgr_list_agents(const claw_cap_call_context_t *ctx,
+                                     claw_agent_mgr_agent_info_t *out_infos,
+                                     size_t max_infos,
+                                     size_t *out_count)
+{
+    char (*child_ids)[CLAW_SESSION_MGR_ID_SIZE] = NULL;
+    size_t child_count = 0;
+    esp_err_t err;
+
+    if (!claw_agent_mgr_ctx_is_root_agent(ctx) || !ctx->session_id || !ctx->session_id[0] ||
+            !out_infos || max_infos == 0 || !out_count) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    *out_count = 0;
+
+    child_ids = calloc(max_infos, sizeof(child_ids[0]));
+    if (!child_ids) {
+        return ESP_ERR_NO_MEM;
+    }
+
+    err = claw_session_mgr_list_subagent_sessions(ctx->session_id, child_ids, max_infos, &child_count);
+    if (err != ESP_OK) {
+        free(child_ids);
+        return err;
+    }
+
+    claw_agent_mgr_lock();
+    for (size_t i = 0; i < child_count; i++) {
+        claw_agent_mgr_agent_t *agent = claw_agent_mgr_find_locked(child_ids[i]);
+
+        if (agent) {
+            claw_agent_mgr_fill_info_locked(agent, &out_infos[i]);
+        } else {
+            /* Persisted child with no live runtime: report as closed. */
+            memset(&out_infos[i], 0, sizeof(out_infos[i]));
+            strlcpy(out_infos[i].agent_id, child_ids[i], sizeof(out_infos[i].agent_id));
+            strlcpy(out_infos[i].session_id, child_ids[i], sizeof(out_infos[i].session_id));
+            strlcpy(out_infos[i].parent_session_id, ctx->session_id,
+                    sizeof(out_infos[i].parent_session_id));
+            strlcpy(out_infos[i].agent_type, "subagent", sizeof(out_infos[i].agent_type));
+            out_infos[i].status = CLAW_AGENT_MGR_STATUS_CLOSED;
+            out_infos[i].phase = CLAW_CORE_AGENT_LOOP_PHASE_IDLE;
+        }
+    }
     claw_agent_mgr_unlock();
+
+    *out_count = child_count;
+    free(child_ids);
     return ESP_OK;
 }
 

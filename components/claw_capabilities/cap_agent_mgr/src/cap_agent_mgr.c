@@ -17,6 +17,9 @@
 
 static const char *TAG = "cap_agent_mgr";
 
+// max number of agents
+#define CAP_AGENT_MGR_LIST_MAX 16
+
 static const char *cap_agent_mgr_get_string(cJSON *root, const char *name)
 {
     return cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(root, name));
@@ -184,6 +187,80 @@ static esp_err_t cap_agent_mgr_inspect_execute(const char *input_json,
     return ESP_OK;
 }
 
+static esp_err_t cap_agent_mgr_list_execute(const char *input_json,
+                                            const claw_cap_call_context_t *ctx,
+                                            char *output,
+                                            size_t output_size)
+{
+    claw_agent_mgr_agent_info_t *infos = NULL;
+    size_t count = 0;
+    cJSON *root = NULL;
+    cJSON *agents = NULL;
+    char *json = NULL;
+    esp_err_t err;
+
+    (void)input_json;
+
+    err = cap_agent_mgr_require_root(ctx, output, output_size);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    infos = calloc(CAP_AGENT_MGR_LIST_MAX, sizeof(*infos));
+    if (!infos) {
+        snprintf(output, output_size, "Error: out of memory.");
+        return ESP_ERR_NO_MEM;
+    }
+
+    err = claw_agent_mgr_list_agents(ctx, infos, CAP_AGENT_MGR_LIST_MAX, &count);
+    if (err != ESP_OK) {
+        free(infos);
+        snprintf(output, output_size, "Error: list_agents failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    root = cJSON_CreateObject();
+    agents = cJSON_AddArrayToObject(root, "agents");
+    if (!root || !agents) {
+        cJSON_Delete(root);
+        free(infos);
+        snprintf(output, output_size, "Error: out of memory.");
+        return ESP_ERR_NO_MEM;
+    }
+    for (size_t i = 0; i < count; i++) {
+        cJSON *item = cJSON_CreateObject();
+
+        if (!item) {
+            continue;
+        }
+        cJSON_AddStringToObject(item, "agent_id", infos[i].agent_id);
+        cJSON_AddStringToObject(item, "status", claw_agent_mgr_status_to_string(infos[i].status));
+        cJSON_AddStringToObject(item, "agent_type", infos[i].agent_type);
+        cJSON_AddNumberToObject(item, "phase", (double)infos[i].phase);
+        cJSON_AddNumberToObject(item, "last_request_id", (double)infos[i].last_request_id);
+        if (infos[i].last_error[0]) {
+            cJSON_AddStringToObject(item, "last_error", infos[i].last_error);
+        }
+        cJSON_AddItemToArray(agents, item);
+    }
+    cJSON_AddNumberToObject(root, "count", (double)count);
+
+    json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    free(infos);
+    if (!json) {
+        snprintf(output, output_size, "Error: out of memory.");
+        return ESP_ERR_NO_MEM;
+    }
+    if (strlcpy(output, json, output_size) >= output_size) {
+        free(json);
+        snprintf(output, output_size, "Error: agent list is too large.");
+        return ESP_ERR_INVALID_SIZE;
+    }
+    free(json);
+    return ESP_OK;
+}
+
 static esp_err_t cap_agent_mgr_close_execute(const char *input_json,
                                              const claw_cap_call_context_t *ctx,
                                              char *output,
@@ -298,6 +375,16 @@ static const claw_cap_descriptor_t s_agent_mgr_caps[] = {
         .cap_flags = CLAW_CAP_FLAG_CALLABLE_BY_LLM | CLAW_CAP_FLAG_ROOT_AGENT_ONLY,
         .input_schema_json = "{\"type\":\"object\",\"properties\":{\"agent_id\":{\"type\":\"string\"}},\"required\":[\"agent_id\"]}",
         .execute = cap_agent_mgr_inspect_execute,
+    },
+    {
+        .id = "list_agents",
+        .name = "list_agents",
+        .family = "agent_mgr",
+        .description = "List the live and closed subagents spawned in the current session, with their lifecycle status.",
+        .kind = CLAW_CAP_KIND_CALLABLE,
+        .cap_flags = CLAW_CAP_FLAG_CALLABLE_BY_LLM | CLAW_CAP_FLAG_ROOT_AGENT_ONLY,
+        .input_schema_json = "{\"type\":\"object\",\"properties\":{}}",
+        .execute = cap_agent_mgr_list_execute,
     },
     {
         .id = "close_agent",

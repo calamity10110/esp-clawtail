@@ -981,12 +981,14 @@ TEST_CASE("root-only agent manager tools are visible to root and rejected for su
     TEST_ASSERT_NOT_NULL(strstr(root_tools, "spawn_agent"));
     TEST_ASSERT_NOT_NULL(strstr(root_tools, "send_input"));
     TEST_ASSERT_NOT_NULL(strstr(root_tools, "inspect_agent"));
+    TEST_ASSERT_NOT_NULL(strstr(root_tools, "list_agents"));
     TEST_ASSERT_NOT_NULL(strstr(root_tools, "close_agent"));
     TEST_ASSERT_NOT_NULL(strstr(root_tools, "delete_agent"));
     TEST_ASSERT_NULL(strstr(root_tools, "wait_agent"));
     TEST_ASSERT_NULL(strstr(sub_tools, "spawn_agent"));
     TEST_ASSERT_NULL(strstr(sub_tools, "send_input"));
     TEST_ASSERT_NULL(strstr(sub_tools, "inspect_agent"));
+    TEST_ASSERT_NULL(strstr(sub_tools, "list_agents"));
     TEST_ASSERT_NULL(strstr(sub_tools, "close_agent"));
     TEST_ASSERT_NULL(strstr(sub_tools, "delete_agent"));
 

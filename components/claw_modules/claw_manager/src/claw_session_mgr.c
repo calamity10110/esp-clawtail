@@ -979,6 +979,39 @@ esp_err_t claw_session_mgr_subagent_id_is_known(const char *parent_session_id,
     return err;
 }
 
+esp_err_t claw_session_mgr_list_subagent_sessions(const char *parent_session_id,
+                                                  char (*out_ids)[CLAW_SESSION_MGR_ID_SIZE],
+                                                  size_t max_ids,
+                                                  size_t *out_count)
+{
+    claw_session_mgr_subagent_map_t map;
+    esp_err_t err;
+
+    if (!parent_session_id || !parent_session_id[0] || !out_count ||
+            (max_ids > 0 && !out_ids)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    *out_count = 0;
+    if (!s_session_mgr.configured || !s_session_mgr.mutex) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    xSemaphoreTakeRecursive(s_session_mgr.mutex, portMAX_DELAY);
+    err = claw_session_mgr_load_subagent_map_locked(parent_session_id, &map);
+    if (err == ESP_OK) {
+        for (size_t i = 0; i < map.child_count && i < max_ids; i++) {
+            strlcpy(out_ids[i], map.child_ids[i], sizeof(out_ids[i]));
+        }
+        *out_count = map.child_count < max_ids ? map.child_count : max_ids;
+    }
+    xSemaphoreGiveRecursive(s_session_mgr.mutex);
+
+    if (err == ESP_ERR_NOT_FOUND) {
+        return ESP_OK;
+    }
+    return err;
+}
+
 esp_err_t claw_session_mgr_delete_subagent_session(const char *parent_session_id,
                                                    const char *subagent_id,
                                                    bool *out_deleted_any)

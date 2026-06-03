@@ -67,6 +67,10 @@ esp_err_t claw_session_mgr_alloc_subagent_session_id(const char *parent_session_
 esp_err_t claw_session_mgr_subagent_id_is_known(const char *parent_session_id,
                                                 const char *subagent_id,
                                                 bool *out_known);
+esp_err_t claw_session_mgr_list_subagent_sessions(const char *parent_session_id,
+                                                  char (*out_ids)[CLAW_SESSION_MGR_ID_SIZE],
+                                                  size_t max_ids,
+                                                  size_t *out_count);
 esp_err_t claw_session_mgr_delete_subagent_session(const char *parent_session_id,
                                                    const char *subagent_id,
                                                    bool *out_deleted_any);

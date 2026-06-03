@@ -8,5 +8,4 @@ idf_component_register(
         claw_cap
         claw_core
         freertos
-        json
 )

@@ -97,6 +97,10 @@ esp_err_t claw_agent_mgr_send_subagent_input(const claw_cap_call_context_t *ctx,
 esp_err_t claw_agent_mgr_inspect_agent(const claw_cap_call_context_t *ctx,
                                        const char *agent_id,
                                        claw_agent_mgr_agent_info_t *out_info);
+esp_err_t claw_agent_mgr_list_agents(const claw_cap_call_context_t *ctx,
+                                     claw_agent_mgr_agent_info_t *out_infos,
+                                     size_t max_infos,
+                                     size_t *out_count);
 esp_err_t claw_agent_mgr_close_agent(const claw_cap_call_context_t *ctx,
                                      const char *agent_id);
 esp_err_t claw_agent_mgr_delete_agent(const claw_cap_call_context_t *ctx,
