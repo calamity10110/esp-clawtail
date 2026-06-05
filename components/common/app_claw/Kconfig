@@ -248,7 +248,7 @@ menu "App Claw Config"
 
         config APP_CLAW_LUA_MODULE_BLE
             bool "Enable BLE Lua module"
-            default y
+            default n
             depends on APP_CLAW_CAP_LUA
             help
                 Enable the generic BLE Lua module.
