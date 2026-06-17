@@ -279,6 +279,7 @@ static void lua_lvgl_release_runtime_locked(void)
         s_lvgl.display = NULL;
     }
     lua_lvgl_invalidate_records_locked();
+    lua_lvgl_release_fonts_locked();
     lua_lvgl_drain_event_queue_locked();
     lua_lvgl_drain_pending_unrefs_locked(owner);
     heap_caps_free(s_lvgl.draw_buf);
@@ -446,6 +447,14 @@ static int lua_lvgl_init(lua_State *L)
     if (!s_lvgl.lvgl_initialized) {
         lv_init();
         s_lvgl.lvgl_initialized = true;
+    }
+    err = lua_lvgl_register_fs_locked();
+    if (err != ESP_OK) {
+        lua_lvgl_unlock();
+        heap_caps_free(draw_buf);
+        (void)display_arbiter_release(DISPLAY_ARBITER_OWNER_LUA);
+        s_lvgl.display_owner_acquired = false;
+        return lua_lvgl_error_esp(L, "register fs", err);
     }
 
     display = lv_display_create(width, height);

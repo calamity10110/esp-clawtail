@@ -483,8 +483,7 @@ static esp_err_t app_lua_register_led_strip(const char *fatfs_base_path)
 #if CONFIG_APP_CLAW_LUA_MODULE_LVGL
 static esp_err_t app_lua_register_lvgl(const char *fatfs_base_path)
 {
-    (void)fatfs_base_path;
-    return lua_module_lvgl_register();
+    return lua_module_lvgl_register_with_data_root(fatfs_base_path);
 }
 #endif
 
