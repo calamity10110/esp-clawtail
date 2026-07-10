@@ -21,7 +21,6 @@
       - "**/build*/size.json"
       - "**/build*/build_log.txt"
       - "**/build*/*.bin"
-      # upload to s3 server to save the artifacts size
       - "**/build*/*.map"
       - "**/build*/*.elf"
       - "**/build*/flasher_args.json"
@@ -33,22 +32,18 @@
       - "**/build*/partition_table/*.bin"
       - "**/build*/mmap_build/**/*.bin"
       - "**/build*/**/*.bin"
-      - "merged_binary/*.bin"
-      - "merged_binary/*.gz"
-      - "merged_binary/*.json"
+      - "firmware_output/*.tar.gz"
+      - "firmware_output/*.json"
       - size_info.txt
     expire_in: 1 week
   variables:
     IDF_CI_BUILD: "1"
-    # By configuring this macro, you can append the compiled configuration file.
-    # For example, using "sdkconf.etc=default" specifies the default sdkconfig file.
     EXAMPLE_CONFIG: "="
     EXAMPLE_TARGET: ""
     EXAMPLE_APPEND_ARGS: ""
     EXAMPLE_BOARD: "default"
     EXAMPLE_BOARD_PATH: "boards"
     BUILD_RECURSIVE: "1"
-    MERGED_BINARY_FORMATS: "gzip"
   script:
     - pip install idf_build_apps esp-bmgr-assist
     - |
@@ -65,7 +60,7 @@
               --board-path ${EXAMPLE_BOARD_PATH} \
               --ignore-warnings \
               ${EXAMPLE_APPEND_ARGS}
-    - python .gitlab/ci/merge_bin.py
+    - python .gitlab/ci/package_firmware.py
 
 .build_idf_active_release_version:
   parallel:
