@@ -11,6 +11,7 @@
 
 #include "esp_check.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 
 static const char *TAG = "http_server";
 
@@ -74,6 +75,15 @@ esp_err_t http_server_start(void)
     config.stack_size = 8192;
     config.max_open_sockets = 12;
     config.lru_purge_enable = true;
+
+    uint32_t task_caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+#if CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) >= config.stack_size) {
+        task_caps = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT;
+    }
+#endif
+    config.task_caps = task_caps;
+
     config.close_fn = http_server_close_fn;
     config.uri_match_fn = httpd_uri_match_wildcard;
 
@@ -84,6 +94,9 @@ esp_err_t http_server_start(void)
     ESP_RETURN_ON_ERROR(http_server_register_config_routes(s_ctx.server), TAG, "Failed to register config routes");
     ESP_RETURN_ON_ERROR(http_server_register_status_routes(s_ctx.server), TAG, "Failed to register status routes");
     ESP_RETURN_ON_ERROR(http_server_register_files_routes(s_ctx.server), TAG, "Failed to register files routes");
+#if CONFIG_APP_CLAW_LUA_MODULE_HTTP_SERVER
+    ESP_RETURN_ON_ERROR(http_server_register_lua_app_routes(s_ctx.server), TAG, "Failed to register Lua app routes");
+#endif
     ESP_RETURN_ON_ERROR(http_server_register_wechat_routes(s_ctx.server), TAG, "Failed to register WeChat routes");
     ESP_RETURN_ON_ERROR(http_server_register_webim_routes(s_ctx.server), TAG, "Failed to register Web IM routes");
     ESP_RETURN_ON_ERROR(httpd_register_err_handler(s_ctx.server, HTTPD_404_NOT_FOUND, http_server_captive_404_handler),

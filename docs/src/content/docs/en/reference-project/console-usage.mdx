@@ -3,14 +3,15 @@ title: Console usage
 description: "Serial REPL: session, Q&A, cap, skills, and automation debug commands."
 ---
 
-import { Aside, LinkCard } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import { LinkCard } from 'starlight-theme-nova/components'
 
 Connect the board over USB, use `idf.py monitor`, `minicom`, or the [web flasher](@lang/flash) Console to reach the `edge_agent` prompt (default `app> `).
 
 <Aside type="tip">
   Logs scroll but you cannot type commands?
-  - Boards with both UART and USB-JTAG: try the other port.
-  - Single-USB devices: try a firmware build with `JTAG` in the name, or [build from source](@lang/reference-project/build-from-source) and adjust `Channel for console output` in menuconfig.
+  - Boards with both UART and USB-Serial JTAG: try the other port.
+  - Single-USB devices: try a firmware build with `Serial JTAG` in the name, or [build from source](@lang/reference-project/build-from-source) and adjust `Channel for console output` in menuconfig.
 </Aside>
 
 ## Session and Q&A
@@ -34,7 +35,7 @@ ask_once one-off question, do not use history
 ```
 
 <Aside type="tip">
-  If the LLM was not fully configured at boot (missing key / model / profile), `claw_core` never starts and `ask` fails.
+  If the LLM was not fully configured at boot (missing key / model / backend_type), `claw_core` never starts and `ask` fails.
   See [Configuration](@lang/reference-project/configuration) for required LLM fields.
 </Aside>
 
@@ -52,7 +53,7 @@ The second argument must be valid JSON (mind quoting/escaping).
 
 ```sh
 cap call get_current_time '{}'
-cap call list_dir '{"path":"/fatfs"}'
+cap call list_dir '{"keyword":"scripts"}'
 ```
 
 ### Group management
@@ -74,14 +75,12 @@ cap unload <group_id>
   Alternatively, use `cap call activate_skill '{"skill_id":"your_skill"}'` from the console to manage Skills.
 </Aside>
 
-On the model side: `activate_skill` / `deactivate_skill`. On serial: the `skill` command (registered by `cmd_cap_skill`) can manage Skills, e.g.:
+On the model side: `activate_skill`. On serial: the `skill` command (registered by `cmd_cap_skill`) can manage Skills, e.g.:
 
 ```sh
 skill --catalog
 skill --list --session default
 skill --activate weather --session default
-skill --deactivate weather --session default
-skill --clear --session default
 ```
 
 Keep `--session` aligned with the active `session` id, otherwise it looks “activated but not in context”.
@@ -107,7 +106,7 @@ auto last
 `edge_agent` registers `help`, `cap`, `auto`, `time`, `web_search`, `mcp_client`, `mcp_server`, `llm_inspect`, `event_router`, etc.
 Type `help` in the Console for the full list.
 
-Besides the usual `cap` subcommands (`list`, `call`, `groups`, `enable`, `disable`, `unload`), `cap load qq` dynamically loads the `cap_im_qq` group.
+Besides the usual `cap` subcommands (`list`, `call`, `groups`, `enable`, `disable`, `unload`), `cap load qq` dynamically registers the `cap_im_qq` group implemented by `cap_im_platform`.
 
 ## System configuration
 

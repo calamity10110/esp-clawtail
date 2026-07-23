@@ -1,5 +1,6 @@
 import {
   createSignal,
+  createEffect,
   Show,
   type Component,
   type JSX,
@@ -11,8 +12,7 @@ import {
 const ROW_CLASS =
   'flex items-center gap-3 py-3 px-5 hover:bg-white/[0.015] transition-colors select-none';
 
-const BODY_CLASS =
-  'px-5 pb-5 pt-1 bg-white/[0.015] border-t border-[var(--color-border-subtle)]';
+const BODY_CLASS = 'px-5 pb-5 pt-1 bg-white/[0.015] border-t border-[var(--color-border-subtle)]';
 
 export const ChevronIcon: Component<{ open: boolean }> = (props) => (
   <svg
@@ -49,6 +49,8 @@ export const StaticConfigBlock: ParentComponent<StaticConfigBlockProps> = (props
 type CollapsibleConfigBlockProps = {
   title: string;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   class?: string;
   /** Rendered to the right of the title, before the chevron; clicks do not toggle the block. */
   headerEnd?: JSX.Element;
@@ -58,7 +60,20 @@ type CollapsibleConfigBlockProps = {
 export const CollapsibleConfigBlock: ParentComponent<CollapsibleConfigBlockProps> = (props) => {
   const [open, setOpen] = createSignal(props.defaultOpen ?? true);
 
-  const toggle = () => setOpen((v) => !v);
+  createEffect(() => {
+    if (props.open !== undefined) {
+      setOpen(props.open);
+    }
+  });
+
+  const applyOpen = (next: boolean) => {
+    if (props.open === undefined) {
+      setOpen(next);
+    }
+    props.onOpenChange?.(next);
+  };
+
+  const toggle = () => applyOpen(!open());
 
   return (
     <div class={props.class}>

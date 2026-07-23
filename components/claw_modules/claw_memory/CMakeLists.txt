@@ -13,7 +13,4 @@ idf_component_register(
     REQUIRES
         claw_cap
         claw_core
-        json
-    PRIV_REQUIRES
-        mbedtls
 )

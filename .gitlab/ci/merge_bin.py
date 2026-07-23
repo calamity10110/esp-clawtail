@@ -5,13 +5,17 @@
 
 import csv
 import datetime
+import gzip
 import json
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, Iterable, Tuple
+from typing import Dict, Iterable, Set, Tuple
+
+# Use `MERGED_BINARY_FORMATS=bin,gzip` to enable/disable binary formats
+SUPPORTED_MERGED_BINARY_FORMATS = {'bin', 'gzip'}
 
 
 def _log(msg: str) -> None:
@@ -198,10 +202,35 @@ def _merge_bin(build_dir: Path, target: str, out_bin: Path) -> None:
     )
 
 
-def _resolve_rev_and_suffix(build_dir: Path, target: str) -> Tuple[int, str]:
-    if target != 'esp32p4':
-        raise RuntimeError(f'rev resolution is only supported for esp32p4, got: {target}')
+def _gzip_bin(source_bin: Path, out_gzip: Path) -> None:
+    with source_bin.open('rb') as src, gzip.open(out_gzip, 'wb', compresslevel=9) as dst:
+        while True:
+            chunk = src.read(1024 * 1024)
+            if not chunk:
+                break
+            dst.write(chunk)
 
+
+def _resolve_output_formats() -> Set[str]:
+    raw = os.getenv('MERGED_BINARY_FORMATS', '').strip()
+    if not raw:
+        return {'gzip'}
+
+    formats = {item.strip().lower() for item in raw.split(',') if item.strip()}
+    if not formats:
+        raise RuntimeError('MERGED_BINARY_FORMATS is empty')
+
+    invalid = sorted(formats - SUPPORTED_MERGED_BINARY_FORMATS)
+    if invalid:
+        raise RuntimeError(
+            f'unsupported MERGED_BINARY_FORMATS: {", ".join(invalid)} '
+            f'(supported: {", ".join(sorted(SUPPORTED_MERGED_BINARY_FORMATS))})'
+        )
+
+    return formats
+
+
+def _load_sdkconfig_json(build_dir: Path) -> Dict:
     sdkconfig_json = build_dir / 'config' / 'sdkconfig.json'
     if not sdkconfig_json.is_file():
         raise RuntimeError(f'missing sdkconfig.json: {sdkconfig_json}')
@@ -212,11 +241,34 @@ def _resolve_rev_and_suffix(build_dir: Path, target: str) -> Tuple[int, str]:
     if not isinstance(sdkconfig, dict):
         raise RuntimeError(f'invalid sdkconfig.json object: {sdkconfig_json}')
 
+    return sdkconfig
+
+
+def _resolve_rev_and_suffix(sdkconfig: Dict, target: str) -> Tuple[int, str]:
+    if target != 'esp32p4':
+        raise RuntimeError(f'rev resolution is only supported for esp32p4, got: {target}')
+
     selects_rev_less_v3 = sdkconfig.get('ESP32P4_SELECTS_REV_LESS_V3')
     if selects_rev_less_v3 is True:
         return 1, '__rev1'
 
     return 3, '__rev3'
+
+
+def _resolve_console_output(sdkconfig: Dict) -> str:
+    if sdkconfig.get('ESP_CONSOLE_UART') is True:
+        return 'UART'
+    if sdkconfig.get('ESP_CONSOLE_USB_SERIAL_JTAG') is True:
+        return 'Serial JTAG'
+    return 'unknown'
+
+
+def _console_output_filename_suffix(console_output: str) -> str:
+    if console_output == 'UART':
+        return '__uart'
+    if console_output == 'Serial JTAG':
+        return '__serial_jtag'
+    return '__unknown'
 
 
 def _write_output_json(
@@ -225,7 +277,8 @@ def _write_output_json(
     board_brand: str,
     chip: str,
     rev: int,
-    merged_binary_name: str,
+    merged_binary: Dict[str, str],
+    console_output: str,
     flash_size: str,
     nvs_start: str,
     nvs_size: str,
@@ -234,7 +287,8 @@ def _write_output_json(
         'board': board,
         'board_brand': board_brand,
         'chip': chip,
-        'merged_binary': merged_binary_name,
+        'console_output': console_output,
+        'merged_binary': merged_binary,
         'min_flash_size': flash_size,
         'nvs_info': {
             'start_addr': nvs_start,
@@ -275,40 +329,62 @@ def main() -> int:
     merge_dir.mkdir(parents=True, exist_ok=True)
 
     git_desc = _git_description()
+    output_formats = _resolve_output_formats()
+    success_count = 0
 
     for build_dir in build_dirs:
-        _log(f'Trying build directory: {build_dir}')
+        _log(f'Processing build directory: {build_dir}')
         try:
             _, flash_size, partition_file = _load_flasher_json(build_dir)
+            sdkconfig = _load_sdkconfig_json(build_dir)
             rev = 0
             filename_suffix = ''
+            console_output = _resolve_console_output(sdkconfig)
             if target == 'esp32p4':
-                rev, filename_suffix = _resolve_rev_and_suffix(build_dir, target)
+                rev, filename_suffix = _resolve_rev_and_suffix(sdkconfig, target)
+            filename_suffix += _console_output_filename_suffix(console_output)
             out_basename = f'{board}__{git_desc}{filename_suffix}'
             out_bin = merge_dir / f'{out_basename}.bin'
+            out_gzip = merge_dir / f'{out_basename}.bin.gz'
             out_json = merge_dir / f'{out_basename}.json'
             nvs_start, nvs_size = _extract_nvs_info(build_dir, partition_file)
             _merge_bin(build_dir, target, out_bin)
+            merged_binary = {}
+            if 'gzip' in output_formats:
+                _gzip_bin(out_bin, out_gzip)
+                merged_binary['gzip'] = out_gzip.name
+            if 'bin' in output_formats:
+                merged_binary['bin'] = out_bin.name
+            else:
+                out_bin.unlink(missing_ok=True)
             _write_output_json(
                 out_json=out_json,
                 board=board,
                 board_brand=board_brand,
                 chip=target,
                 rev=rev,
-                merged_binary_name=out_bin.name,
+                merged_binary=merged_binary,
+                console_output=console_output,
                 flash_size=flash_size,
                 nvs_start=nvs_start,
                 nvs_size=nvs_size,
             )
             _log(f'Success with build directory: {build_dir}')
-            _log(f'Merged binary: {out_bin}')
+            if 'bin' in output_formats:
+                _log(f'Merged binary: {out_bin}')
+            if 'gzip' in output_formats:
+                _log(f'Compressed merged binary: {out_gzip}')
             _log(f'Metadata json: {out_json}')
-            return 0
+            success_count += 1
         except Exception as e:
             _log(f'Build directory invalid: {build_dir} ({e})')
 
-    _log('All build directories are invalid')
-    return 1
+    if success_count == 0:
+        _log('All build directories are invalid')
+        return 1
+
+    _log(f'Processed {success_count} build directory(s) successfully')
+    return 0
 
 
 if __name__ == '__main__':

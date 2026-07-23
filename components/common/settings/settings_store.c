@@ -96,6 +96,39 @@ esp_err_t settings_store_get_string(const char *key,
     return ESP_OK;
 }
 
+esp_err_t settings_store_has_key(const char *key, bool *exists)
+{
+    if (!key || !exists) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    *exists = false;
+
+    nvs_handle_t handle;
+    esp_err_t err = settings_store_open(NVS_READONLY, &handle);
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        return ESP_OK;
+    }
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    size_t required_size = 0;
+    err = nvs_get_str(handle, key, NULL, &required_size);
+    nvs_close(handle);
+
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        return ESP_OK;
+    }
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_get_str(%s) failed: %s", key, esp_err_to_name(err));
+        return err;
+    }
+
+    *exists = true;
+    return ESP_OK;
+}
+
 esp_err_t settings_store_set_string(const char *key, const char *value)
 {
     if (!key) {
@@ -112,6 +145,40 @@ esp_err_t settings_store_set_string(const char *key, const char *value)
     err = nvs_set_str(handle, key, value ? value : "");
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "nvs_set_str(%s) failed: %s", key, esp_err_to_name(err));
+        nvs_close(handle);
+        return err;
+    }
+
+    err = nvs_commit(handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_commit failed: %s", esp_err_to_name(err));
+    }
+
+    nvs_close(handle);
+    return err;
+}
+
+esp_err_t settings_store_erase_key(const char *key)
+{
+    if (!key) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    nvs_handle_t handle;
+    esp_err_t err = settings_store_open(NVS_READWRITE, &handle);
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        return ESP_OK;
+    }
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_open failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    err = nvs_erase_key(handle, key);
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        err = ESP_OK;
+    } else if (err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_erase_key(%s) failed: %s", key, esp_err_to_name(err));
         nvs_close(handle);
         return err;
     }

@@ -138,7 +138,7 @@
   <img src="docs/src/assets/images/claw-breadboard-photo.jpg" width="80%" alt="ESP-Claw on ESP32-S3 Breadboard" />
 </div>
 
-ESP-Claw 目前已适配基于 ESP32-S3 的多款开发版，例如面包板、M5Stack CoreS3 等。[已支持的开发版](./application/edge_agent/boards/)可以直接在线烧录：通过网页即可完成配置与烧录，无需额外编译固件或安装开发环境。
+ESP-Claw 目前已适配基于 ESP32-S3、ESP32-P4、ESP32-C5、ESP32-S31 的多款开发版，例如面包板、M5Stack CoreS3 等。[已支持的开发版](./application/edge_agent/boards/)可以直接在线烧录：通过网页即可完成配置与烧录，无需额外编译固件或安装开发环境。
 
 <div align="center">
   <a href="https://esp-claw.com/zh-cn/flash/">
@@ -162,7 +162,7 @@ ESP-Claw 目前已适配基于 ESP32-S3 的多款开发版，例如面包板、M
 
 **LLM**: ESP-Claw 现已支持 OpenAI 风格 API 和 Anthropic 风格 API，原生支持 OpenAI 提供的 GPT 系列模型、阿里云百炼提供的 Qwen 系列模型、Anthropic 提供的 Claude 系列模型、DeepSeek 官方 API 提供的 DeepSeek 模型等，也可以自定义 Endpoint。
 
-> ![TIP]
+> [!TIP]
 >
 > ESP-Claw 的自编程能力需要调用工具和遵循指令能力较强的模型，推荐使用 `gpt-5.4`、`qwen3.6-plus`、`claude4.6-sonnet`、`deepseek-v4-pro` 或类似性能的模型。
 

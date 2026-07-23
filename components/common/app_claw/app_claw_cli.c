@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "app_claw_cli.h"
+#include "app_claw.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -29,12 +30,6 @@
 #if CONFIG_APP_CLAW_CAP_LUA
 #include "cmd_cap_lua.h"
 #endif
-#if CONFIG_APP_CLAW_CAP_MCP_CLIENT
-#include "cmd_cap_mcp_client.h"
-#endif
-#if CONFIG_APP_CLAW_CAP_MCP_SERVER
-#include "cmd_cap_mcp_server.h"
-#endif
 #if CONFIG_APP_CLAW_CAP_ROUTER_MGR
 #include "cmd_cap_router_mgr.h"
 #endif
@@ -44,13 +39,11 @@
 #if CONFIG_APP_CLAW_CAP_SKILL_MGR
 #include "cmd_cap_skill.h"
 #endif
-#if CONFIG_APP_CLAW_CAP_TIME
-#include "cmd_cap_time.h"
-#endif
 #if CONFIG_APP_CLAW_CAP_WEB_SEARCH
 #include "cmd_cap_web_search.h"
 #endif
 #include "claw_cap.h"
+#include "claw_agent_mgr.h"
 #include "claw_core.h"
 #include "claw_event_publisher.h"
 #include "claw_event_router.h"
@@ -124,29 +117,35 @@ static char *join_args_from(int argc, char **argv, int start_index)
 
 static int submit_and_print(const char *prompt, const char *session_id)
 {
-    claw_core_request_t request = {0};
     claw_core_response_t response = {0};
+    uint32_t request_id = 0;
     esp_err_t err;
-
-    request.request_id = s_next_request_id++;
-    request.user_text = prompt;
-    request.session_id = session_id;
 
     if (session_id && session_id[0]) {
         printf("Submitting request %" PRIu32 " [session=%s]...\n",
-               request.request_id,
+               s_next_request_id,
                session_id);
     } else {
-        printf("Submitting request %" PRIu32 " [single-turn]...\n", request.request_id);
+        printf("Submitting request %" PRIu32 " [single-turn]...\n", s_next_request_id);
     }
 
-    err = claw_core_submit(&request, 5000);
+    if (!app_claw_get_core()) {
+        printf("claw_core is not ready\n");
+        return 1;
+    }
+
+    err = claw_agent_mgr_submit_root_text(prompt,
+                                          session_id,
+                                          CLAW_CORE_REQUEST_FLAG_PUBLISH_STAGE_MESSAGE,
+                                          5000,
+                                          &request_id);
     if (err != ESP_OK) {
         printf("submit failed: %s\n", esp_err_to_name(err));
         return 1;
     }
+    s_next_request_id = request_id + 1;
 
-    err = claw_core_receive_for(request.request_id, &response, 130000);
+    err = claw_agent_mgr_receive_root_for(request_id, &response, 130000);
     if (err != ESP_OK) {
         printf("receive failed: %s\n", esp_err_to_name(err));
         return 1;
@@ -259,6 +258,7 @@ static int cmd_cap_call(int argc, char **argv)
     claw_cap_call_context_t ctx = {
         .caller = CLAW_CAP_CALLER_CONSOLE,
         .session_id = s_current_session_id,
+        .core = app_claw_get_core(),
     };
 
     if (argc < 3) {
@@ -713,12 +713,6 @@ static void register_cap_cli_commands(void)
 #if CONFIG_APP_CLAW_CAP_LLM_INSPECT
     register_cap_llm_inspect();
 #endif
-#if CONFIG_APP_CLAW_CAP_MCP_CLIENT
-    register_cap_mcp_client();
-#endif
-#if CONFIG_APP_CLAW_CAP_MCP_SERVER
-    register_cap_mcp_server();
-#endif
 #if CONFIG_APP_CLAW_CAP_ROUTER_MGR
     register_cap_router_mgr();
 #endif
@@ -727,9 +721,6 @@ static void register_cap_cli_commands(void)
 #endif
 #if CONFIG_APP_CLAW_CAP_SKILL_MGR
     register_cap_skill();
-#endif
-#if CONFIG_APP_CLAW_CAP_TIME
-    register_cap_time();
 #endif
 #if CONFIG_APP_CLAW_CAP_WEB_SEARCH
     register_cap_web_search();
@@ -744,7 +735,7 @@ esp_err_t app_claw_cli_start(void)
     ESP_LOGI(TAG, "Starting console REPL");
 
     repl_config.prompt = "app> ";
-    repl_config.task_stack_size = 8192;
+    repl_config.task_stack_size = 10240;
     repl_config.max_cmdline_length = 512;
 
 #if CONFIG_ESP_CONSOLE_UART_DEFAULT || CONFIG_ESP_CONSOLE_UART_CUSTOM

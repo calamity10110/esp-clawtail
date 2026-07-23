@@ -17,8 +17,10 @@ export interface Strings {
   chooseChipLabel: string;
   chooseBrandLabel: string;
   chooseBoardLabel: string;
+  chooseConsoleOutputLabel: string;
   chooseChipPlaceholder: string;
   chooseBrandPlaceholder: string;
+  chooseConsoleOutputPlaceholder: string;
   boardAutoHint: string;
   selectedBoardLabel: string;
   noBrandSelected: string;
@@ -29,11 +31,13 @@ export interface Strings {
   firmwareRequirementsLabel: string;
   firmwareDescriptionLabel: string;
   downloadFirmwareLocalLink: string;
+  closeBtn: string;
 
   downloadBtn: string;
   flashBtn: string;
   flashBtnDisabledNoDevice: string;
   flashBtnDisabledNoFirmware: string;
+  flashBtnDisabledNoConsoleOutput: string;
   flashBtnDisabledNoMatch: string;
   actionReadyHint: string;
 
@@ -98,12 +102,29 @@ export interface Strings {
   modalStep2Title: string;
   modalStep3Title: string;
   terminalLabel: string;
+
+  chooseApplicationLabel: string;
+  chooseApplicationPlaceholder: string;
+  chooseVersionLabel: string;
+  chooseVersionPlaceholder: string;
+  versionMaster: string;
+  advancedSettingsLabel: string;
+  eraseFlashBeforeFlash: string;
+  partitionSelectionHint: string;
+  erasingFlash: string;
+  downloadingPartitions: string;
+  mergingFirmware: string;
+  downloadReady: string;
+  downloadError: string;
+  flashingPartition: string;
+  loadingVersions: string;
+  loadVersionsError: string;
 }
 
 const en: Strings = {
   pageTitle: "Flash Online",
   pageSubtitle:
-    "Connect a supported ESP board, flash the merged firmware in your browser, then finish Wi-Fi setup over UART.",
+    "Connect a supported ESP board, flash the merged firmware in your browser, then finish Wi-Fi setup.",
 
   connectBtn: "Connect",
   disconnectBtn: "Disconnect",
@@ -117,8 +138,10 @@ const en: Strings = {
   chooseChipLabel: "Choose Chip",
   chooseBrandLabel: "Choose Brand/Manufacturer/Series",
   chooseBoardLabel: "Choose Board",
+  chooseConsoleOutputLabel: "Console Output",
   chooseChipPlaceholder: "Choose a chip",
   chooseBrandPlaceholder: "Choose a brand/manufacturer/series",
+  chooseConsoleOutputPlaceholder: "Choose a console output",
   boardAutoHint: "Compatible boards are filtered automatically after device detection.",
   selectedBoardLabel: "Selected board",
   noBrandSelected: "No brand/manufacturer/series selected",
@@ -129,11 +152,13 @@ const en: Strings = {
   firmwareRequirementsLabel: "Firmware requirements",
   firmwareDescriptionLabel: "Firmware description",
   downloadFirmwareLocalLink: "Download firmware locally",
+  closeBtn: "Close",
 
   downloadBtn: "Download Firmware",
   flashBtn: "Flash Firmware",
   flashBtnDisabledNoDevice: "Connect a device first",
   flashBtnDisabledNoFirmware: "Select a board first",
+  flashBtnDisabledNoConsoleOutput: "Select an available console output first",
   flashBtnDisabledNoMatch: "The selected board is not compatible with this device",
   actionReadyHint: "Select a compatible board, start flashing, and complete Wi-Fi setup.",
 
@@ -150,7 +175,7 @@ const en: Strings = {
   flashError: "Flash failed: ",
   postFlashReconnectTitle: "Reconnect serial after reset",
   postFlashReconnectDesc:
-    "If you are flashing over ACM (JTAG), the serial port may briefly disconnect after reset. Click below and select the device again to continue.",
+    "If you are flashing over ACM (Serial JTAG), the serial port may briefly disconnect after reset. Click below and select the device again to continue.",
   postFlashReconnectBtn: "Reconnect Serial",
   postFlashReconnectBusy: "Waiting for you to select the device in the browser…",
   postFlashReconnectSuccess: "Serial reconnected. Continuing device setup…",
@@ -168,7 +193,7 @@ const en: Strings = {
   wifiConnecting: "Trying to connect to Wi-Fi…",
   wifiStatusProbeAttempt: "Querying Wi-Fi status ({current}/{total})…",
   wifiProbeError:
-    "Unable to communicate with the device. Check whether JTAG and UART are wired correctly. If the device is still in download mode, press RESET manually.",
+    "Unable to communicate with the device. Check whether Serial JTAG and UART are wired correctly. If the device is still in download mode, press RESET manually.",
   wifiTimeoutError: "Wi-Fi connection timed out. Please check the credentials and try again.",
   wifiReadyTitle: "Device is online",
   wifiReadyDesc: "Open the device web setup page to continue configuration.",
@@ -203,12 +228,29 @@ const en: Strings = {
   modalStep2Title: "Wi-Fi Setup",
   modalStep3Title: "Wi-Fi Connected",
   terminalLabel: "Terminal",
+
+  chooseApplicationLabel: "Application",
+  chooseApplicationPlaceholder: "Choose an application",
+  chooseVersionLabel: "Version",
+  chooseVersionPlaceholder: "Choose a version",
+  versionMaster: "Latest (master)",
+  advancedSettingsLabel: "Advanced Settings",
+  eraseFlashBeforeFlash: "Erase entire flash before flashing (may take a few minutes)",
+  partitionSelectionHint: "Select partitions to flash.",
+  erasingFlash: "Erasing flash (may take a few minutes)…",
+  downloadingPartitions: "Downloading partition files…",
+  mergingFirmware: "Merging partition files…",
+  downloadReady: "Merged firmware is ready. Download started automatically.",
+  downloadError: "Download failed: ",
+  flashingPartition: "Flashing {name} at {offset}…",
+  loadingVersions: "Loading versions…",
+  loadVersionsError: "Failed to load version list",
 };
 
 const zhCn: Strings = {
   pageTitle: "在线烧录",
   pageSubtitle:
-    "连接支持的 ESP 开发板，在浏览器内烧录合并固件，并通过 UART 完成 Wi‑Fi 初始化。",
+    "连接支持的 ESP 开发板，在浏览器内烧录合并固件，并完成 Wi‑Fi 初始化。",
 
   connectBtn: "连接",
   disconnectBtn: "断开",
@@ -222,8 +264,10 @@ const zhCn: Strings = {
   chooseChipLabel: "选择芯片",
   chooseBrandLabel: "选择品牌/生产商/开发版系列",
   chooseBoardLabel: "选择开发板",
+  chooseConsoleOutputLabel: "Console Output",
   chooseChipPlaceholder: "请选择芯片",
   chooseBrandPlaceholder: "请选择品牌/生产商/开发版系列",
+  chooseConsoleOutputPlaceholder: "请选择 Console Output",
   boardAutoHint: "连接设备后会根据芯片、Flash 和 PSRAM 自动筛选兼容开发板。",
   selectedBoardLabel: "当前开发板",
   noBrandSelected: "尚未选择品牌/生产商/开发版系列",
@@ -234,11 +278,13 @@ const zhCn: Strings = {
   firmwareRequirementsLabel: "固件要求",
   firmwareDescriptionLabel: "固件说明",
   downloadFirmwareLocalLink: "下载固件到本地",
+  closeBtn: "关闭",
 
   downloadBtn: "下载固件",
   flashBtn: "开始烧录",
   flashBtnDisabledNoDevice: "请先连接设备",
   flashBtnDisabledNoFirmware: "请先选择开发板",
+  flashBtnDisabledNoConsoleOutput: "请先选择可用的 Console Output",
   flashBtnDisabledNoMatch: "当前开发板与已连接设备不兼容",
   actionReadyHint: "请选择兼容的开发版，开始烧录，并完成 Wi-Fi 配置。",
 
@@ -255,7 +301,7 @@ const zhCn: Strings = {
   flashError: "烧录失败：",
   postFlashReconnectTitle: "重启后重新连接串口",
   postFlashReconnectDesc:
-    "如果你使用的是 ACM（JTAG）烧录，设备重启后串口会短暂断开。请点击下面的按钮，并在浏览器里重新选择设备以继续。",
+    "如果你使用的是 ACM（Serial JTAG）烧录，设备重启后串口会短暂断开。请点击下面的按钮，并在浏览器里重新选择设备以继续。",
   postFlashReconnectBtn: "重新连接串口",
   postFlashReconnectBusy: "请在浏览器弹窗中重新选择设备…",
   postFlashReconnectSuccess: "串口已重新连接，正在继续设备初始化…",
@@ -271,7 +317,7 @@ const zhCn: Strings = {
   wifiConnecting: "正在尝试连接 Wi‑Fi…",
   wifiStatusProbeAttempt: "正在查询 Wi‑Fi 状态 ({current}/{total})…",
   wifiProbeError:
-    "未能与设备通信，请注意 JTAG 与 UART 口是否链接错误。如果设备仍在下载模式，请手动 RESET",
+    "未能与设备通信，请注意 Serial JTAG 与 UART 口是否链接错误。如果设备仍在下载模式，请手动 RESET",
   wifiTimeoutError: "20 秒内未连接成功，请检查 Wi‑Fi 名称和密码后重试。",
   wifiReadyTitle: "设备已联网",
   wifiReadyDesc: "请打开设备网页继续后续配置。",
@@ -306,6 +352,23 @@ const zhCn: Strings = {
   modalStep2Title: "Wi-Fi 配置",
   modalStep3Title: "联网成功",
   terminalLabel: "终端",
+
+  chooseApplicationLabel: "应用",
+  chooseApplicationPlaceholder: "选择应用",
+  chooseVersionLabel: "版本",
+  chooseVersionPlaceholder: "选择版本",
+  versionMaster: "最新版 (master)",
+  advancedSettingsLabel: "高级设置",
+  eraseFlashBeforeFlash: "烧录前擦除全部 Flash（约需数分钟）",
+  partitionSelectionHint: "选择需要烧录的分区。",
+  erasingFlash: "正在擦除 Flash（约需数分钟）…",
+  downloadingPartitions: "正在下载分区文件…",
+  mergingFirmware: "正在合并分区文件…",
+  downloadReady: "合并固件已准备完成，已自动开始下载。",
+  downloadError: "下载失败：",
+  flashingPartition: "正在烧录 {name} 到 {offset}…",
+  loadingVersions: "正在加载版本列表…",
+  loadVersionsError: "加载版本列表失败",
 };
 
 const strings: Record<Lang, Strings> = {

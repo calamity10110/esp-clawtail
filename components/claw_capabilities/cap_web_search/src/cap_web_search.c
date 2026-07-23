@@ -39,7 +39,7 @@ typedef struct {
     cap_web_search_provider_t provider;
 } cap_web_search_state_t;
 
-static cap_web_search_state_t s_search = {0};
+static EXT_RAM_BSS_ATTR cap_web_search_state_t s_search = {0};
 
 static void cap_web_search_refresh_provider(void)
 {
@@ -55,35 +55,34 @@ static void cap_web_search_refresh_provider(void)
 static esp_err_t cap_web_search_http_event_handler(esp_http_client_event_t *event)
 {
     cap_web_search_buf_t *buf = NULL;
+    size_t append_len;
 
-    if (!event || event->event_id != HTTP_EVENT_ON_DATA || event->data_len <= 0) {
+    if (!event) {
         return ESP_OK;
     }
 
     buf = (cap_web_search_buf_t *)event->user_data;
-    if (!buf || !buf->data) {
+    if (event->event_id != HTTP_EVENT_ON_DATA || !buf || !buf->data || event->data_len <= 0) {
         return ESP_OK;
     }
 
-    if (buf->len + (size_t)event->data_len + 1 > buf->cap) {
+    append_len = (size_t)event->data_len;
+    if (buf->len + append_len + 1 > buf->cap) {
         size_t new_cap = buf->cap * 2;
         char *new_data = NULL;
 
-        if (new_cap < buf->len + (size_t)event->data_len + 1) {
-            new_cap = buf->len + (size_t)event->data_len + 1;
+        if (new_cap < buf->len + append_len + 1) {
+            new_cap = buf->len + append_len + 1;
         }
-
         new_data = realloc(buf->data, new_cap);
         if (!new_data) {
             return ESP_ERR_NO_MEM;
         }
-
         buf->data = new_data;
         buf->cap = new_cap;
     }
-
-    memcpy(buf->data + buf->len, event->data, event->data_len);
-    buf->len += (size_t)event->data_len;
+    memcpy(buf->data + buf->len, event->data, append_len);
+    buf->len += append_len;
     buf->data[buf->len] = '\0';
     return ESP_OK;
 }
@@ -122,9 +121,7 @@ static size_t cap_web_search_url_encode(const char *src, char *dst, size_t dst_s
     return pos;
 }
 
-static void cap_web_search_format_brave_results(cJSON *root,
-                                                char *output,
-                                                size_t output_size)
+static void cap_web_search_format_brave_results(cJSON *root, char *output, size_t output_size)
 {
     cJSON *web = NULL;
     cJSON *results = NULL;
@@ -169,9 +166,7 @@ static void cap_web_search_format_brave_results(cJSON *root,
     }
 }
 
-static void cap_web_search_format_tavily_results(cJSON *root,
-                                                 char *output,
-                                                 size_t output_size)
+static void cap_web_search_format_tavily_results(cJSON *root, char *output, size_t output_size)
 {
     cJSON *results = NULL;
     cJSON *item = NULL;
@@ -233,8 +228,7 @@ static char *cap_web_search_build_tavily_payload(const char *query)
     return payload;
 }
 
-static esp_err_t cap_web_search_brave_direct(const char *url,
-                                             cap_web_search_buf_t *buf)
+static esp_err_t cap_web_search_brave_direct(const char *url, cap_web_search_buf_t *buf)
 {
     esp_http_client_config_t config = {
         .url = url,
@@ -243,6 +237,9 @@ static esp_err_t cap_web_search_brave_direct(const char *url,
         .timeout_ms = 15000,
         .buffer_size = 4096,
         .crt_bundle_attach = esp_crt_bundle_attach,
+#ifdef CONFIG_HTTP_REUSE_ENABLE
+        .keep_alive_enable = true,
+#endif
     };
     esp_http_client_handle_t client = NULL;
     esp_err_t err;
@@ -270,8 +267,7 @@ static esp_err_t cap_web_search_brave_direct(const char *url,
     return ESP_OK;
 }
 
-static esp_err_t cap_web_search_tavily_direct(const char *query,
-                                              cap_web_search_buf_t *buf)
+static esp_err_t cap_web_search_tavily_direct(const char *query, cap_web_search_buf_t *buf)
 {
     esp_http_client_config_t config = {
         .url = "https://api.tavily.com/search",
@@ -280,6 +276,9 @@ static esp_err_t cap_web_search_tavily_direct(const char *query,
         .timeout_ms = 15000,
         .buffer_size = 4096,
         .crt_bundle_attach = esp_crt_bundle_attach,
+#ifdef CONFIG_HTTP_REUSE_ENABLE
+        .keep_alive_enable = true,
+#endif
     };
     esp_http_client_handle_t client = NULL;
     char auth[192];

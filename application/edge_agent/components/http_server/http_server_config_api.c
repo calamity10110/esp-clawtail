@@ -38,18 +38,26 @@ typedef struct {
 static const config_field_def_t CONFIG_FIELDS[] = {
     CONFIG_FIELD("wifi",         wifi_ssid),
     CONFIG_FIELD("wifi",         wifi_password),
+    CONFIG_FIELD("wifi",         ap_ssid),
+    CONFIG_FIELD("wifi",         ap_password),
+    CONFIG_FIELD("wifi",         ap_behavior),
 
     CONFIG_FIELD("llm",          llm_api_key),
     CONFIG_FIELD("llm",          llm_backend_type),
-    CONFIG_FIELD("llm",          llm_profile),
     CONFIG_FIELD("llm",          llm_model),
     CONFIG_FIELD("llm",          llm_base_url),
     CONFIG_FIELD("llm",          llm_auth_type),
     CONFIG_FIELD("llm",          llm_timeout_ms),
     CONFIG_FIELD("llm",          llm_max_tokens),
+    CONFIG_FIELD("llm",          llm_default_image_max_bytes),
+    CONFIG_FIELD("llm",          llm_max_tokens_field),
+    CONFIG_FIELD("llm",          llm_supports_tools),
+    CONFIG_FIELD("llm",          llm_supports_vision),
+    CONFIG_FIELD("llm",          llm_image_remote_url_only),
 
     CONFIG_FIELD("im",           qq_app_id),
     CONFIG_FIELD("im",           qq_app_secret),
+    CONFIG_FIELD("im",           qq_msg_type),
     CONFIG_FIELD("im",           feishu_app_id),
     CONFIG_FIELD("im",           feishu_app_secret),
     CONFIG_FIELD("im",           tg_bot_token),
@@ -60,6 +68,7 @@ static const config_field_def_t CONFIG_FIELDS[] = {
 
     CONFIG_FIELD("search",       search_brave_key),
     CONFIG_FIELD("search",       search_tavily_key),
+    CONFIG_FIELD("search",       search_http_allowlist),
 
     CONFIG_FIELD("capabilities", enabled_cap_groups),
     CONFIG_FIELD("capabilities", llm_visible_cap_groups),
@@ -152,6 +161,20 @@ static bool is_positive_decimal_string(const char *value)
     return true;
 }
 
+static bool is_boolean_string(const char *value)
+{
+    return value &&
+           (strcmp(value, "true") == 0 ||
+            strcmp(value, "false") == 0 ||
+            strcmp(value, "1") == 0 ||
+            strcmp(value, "0") == 0);
+}
+
+static esp_err_t validate_wifi_config_fields(const app_config_t *config, const char **message)
+{
+    return app_config_validate_wifi(config, message);
+}
+
 static esp_err_t emit_config(httpd_req_t *req,
                              const app_config_t *config,
                              const char *groups_csv,
@@ -160,6 +183,9 @@ static esp_err_t emit_config(httpd_req_t *req,
 {
     cJSON *root = cJSON_CreateObject();
     if (!root) {
+        /* emit_config owns extra_meta once called; free it here since it is
+         * never attached to root on this failure path (caller does not). */
+        cJSON_Delete(extra_meta);
         httpd_resp_send_500(req);
         return ESP_ERR_NO_MEM;
     }
@@ -297,13 +323,27 @@ static esp_err_t config_post_handler(httpd_req_t *req)
         if (!cJSON_IsString(item)) {
             continue;
         }
-        if (strcmp(field->name, "llm_max_tokens") == 0 &&
-                !is_positive_decimal_string(item->valuestring)) {
+        if (strcmp(field->name, "llm_max_tokens") == 0 ||
+                strcmp(field->name, "llm_default_image_max_bytes") == 0) {
+            if (!is_positive_decimal_string(item->valuestring)) {
+                cJSON_Delete(root);
+                free(config);
+                return httpd_resp_send_err(req,
+                                           HTTPD_400_BAD_REQUEST,
+                                           strcmp(field->name, "llm_max_tokens") == 0 ?
+                                               "llm_max_tokens must be a positive integer" :
+                                               "llm_default_image_max_bytes must be a positive integer");
+            }
+        }
+        if ((strcmp(field->name, "llm_supports_tools") == 0 ||
+                strcmp(field->name, "llm_supports_vision") == 0 ||
+                strcmp(field->name, "llm_image_remote_url_only") == 0) &&
+                !is_boolean_string(item->valuestring)) {
             cJSON_Delete(root);
             free(config);
             return httpd_resp_send_err(req,
                                        HTTPD_400_BAD_REQUEST,
-                                       "llm_max_tokens must be a positive integer");
+                                       "LLM boolean fields must be true/false");
         }
         strlcpy(field_mutable(config, field), item->valuestring, field->size);
         applied_count++;
@@ -315,6 +355,13 @@ static esp_err_t config_post_handler(httpd_req_t *req)
         free(config);
         return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
                                    "Request did not contain any recognised fields");
+    }
+
+    const char *wifi_config_error = NULL;
+    err = validate_wifi_config_fields(config, &wifi_config_error);
+    if (err != ESP_OK) {
+        free(config);
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, wifi_config_error);
     }
 
     err = ctx->services.save_config(config);

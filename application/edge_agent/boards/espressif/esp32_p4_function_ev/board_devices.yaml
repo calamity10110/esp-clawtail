@@ -83,7 +83,7 @@ devices:
       reset_gpio_num: 27
       rgb_ele_order: LCD_RGB_ELEMENT_ORDER_RGB
       data_endian: LCD_RGB_DATA_ENDIAN_LITTLE
-      bits_per_pixel: 24
+      bits_per_pixel: 16
       reset_active_high: 0
       dbi_config:
         virtual_channel: 0
@@ -94,8 +94,8 @@ devices:
         dpi_clk_src: MIPI_DSI_DPI_CLK_SRC_DEFAULT
         dpi_clock_freq_mhz: 48
         pixel_format: LCD_COLOR_PIXEL_FORMAT_RGB565
-        in_color_format: LCD_COLOR_FMT_RGB565
-        out_color_format: LCD_COLOR_FMT_RGB565
+        in_color_format: 0
+        out_color_format: 0
         num_fbs: 1
         flags:
           use_dma2d: false
@@ -116,7 +116,8 @@ devices:
   # Touch Panel Configuration
   - name: lcd_touch
     chip: gt911
-    type: lcd_touch_i2c
+    type: lcd_touch
+    sub_type: i2c
     version: default
     dependencies:
       esp_lcd_touch:
@@ -124,20 +125,17 @@ devices:
         require: public
       espressif/esp_lcd_touch_gt911: "*"
     config:
-      # esp_lcd_panel_io_i2c_config_t fields for touch communication
       io_i2c_config:
-        dev_addr: [0x5D, 0x14]  # GT911 I2C address (ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS)
-        lcd_cmd_bits: 16        # Bit-width of LCD command
-        peripherals:
-          - name: i2c_master    # I2C peripheral for touch communication
-
-      # esp_lcd_touch_config_t fields for touch configuration
+        lcd_cmd_bits: 16
       touch_config:
-        x_max: 1024  # Maximum X coordinate (BSP_LCD_H_RES)
-        y_max: 600   # Maximum Y coordinate (BSP_LCD_V_RES)
+        x_max: 1024
+        y_max: 600
         flags:
           mirror_x: true
           mirror_y: true
+    peripherals:
+      - name: i2c_master
+        i2c_addr: [0xba, 0x28]
 
   - name: lcd_brightness
     type: ledc_ctrl
